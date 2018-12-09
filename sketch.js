@@ -1,14 +1,13 @@
 /* Notes:
 	make teams and put in seed order
 */
-const boxHeight=20;
+const boxHeight=17;
 let bracketWidth;
 let bracketHeight;
 let canvas;
 let marchMadness;
 let allTeams;
 let allBrackets;
-let drag;//points to source bracket
 
 //put teams in order of seeds; divs:1=South 2=West 3=East 4=Midwest; 2018 mm is in list
 let divName1=["Virginia","Cincinnati","Tennessee","Arizona","Kentucky","Miami(FL)","Nevada","Creighton","Kansas St.",
@@ -29,7 +28,7 @@ function Team(div,seed) {
 	this.display=function(bracket) {
 		push();
 		textAlign(CENTER,CENTER);
-		textSize(14);
+		textSize(13);
 		text(this.name,bracket.x,bracket.y);
 		pop();
 	}
@@ -45,13 +44,22 @@ function bracket(numLevels,currDepth,direction,parent,x,y,lineHeight,teamList) {
 	let numWidths=2*this.numLevels-1;
 	this.lineLength=bracketWidth/numWidths;
 	this.dir=0;
+	this.setTeam=function(team) {
+		this.team=team;
+		this.team.positions.push(this);
+	}
+	this.removeTeam=function() {
+		if(this.team) {
+			this.team.positions.splice(6-this.depth,1);
+			this.team=false;
+		}
+	}
 	if(parent) {
 		this.parent=parent;
 		this.dir=direction;
 	}
 	if(!Array.isArray(teamList)) {
-		this.team=teamList;
-		this.team.positions.push(this);
+		this.setTeam(teamList);
 	} else {
 		this.teamList=teamList;
 	}
@@ -132,7 +140,6 @@ function setup() {
 	canvas.position(0,0);
 	bracketWidth=0.95*width;
 	bracketHeight=0.95*height;
-	drag=false;
 	allBrackets=[];
 	rectMode(CENTER);
 	allTeams=[[],[],[],[]];
@@ -159,41 +166,34 @@ function draw() {
 	marchMadness.display();
 	textSize(0.0377*width);
 	text("March Madness",0.36*width,0.15*height);
-	if(drag) {
+	let hover;//a is moused over hover
+	for(let bracket of allBrackets) {
+		if(bracket.contains(mouseX,mouseY)&&bracket.team&&bracket.parent&&bracket.team.positions.length==7-bracket.depth) {//add other conditions ie only last instance of team
+			hover=bracket;
+		}
+	}
+	if(hover) {
 		push();
 		fill(220)
 		noStroke();
-		rect(mouseX,mouseY,drag.lineLength,boxHeight);
+		rect(hover.x,hover.y,1.15*hover.lineLength,1.15*boxHeight);
 		fill(0);
 		textAlign(CENTER,CENTER);
-		textSize(14);
-		text(drag.team.name,mouseX,mouseY);
+		textSize(15);
+		text(hover.team.name,hover.x,hover.y);
 		pop();
 	}
 }
 
-function mouseDragged() {
-	if(!drag) {//check for bracket to pick up
-		for(let bracket of allBrackets) {
-			if(bracket.contains(mouseX,mouseY)&&bracket.team) {//add other conditions ie only last instance of team
-				drag=bracket;
-			}
-		}
-	}
-	return false;
-}
-
-function mouseReleased() {
-	if(drag) {
-		for(let bracket of allBrackets) {
-			if(bracket.contains(mouseX,mouseY)&&drag.parent==bracket) {//other conditions?; add way to add several rounds at a time
-				bracket.team=drag.team;
-				bracket.team.positions.push(bracket);
-				if(bracket.team==bracket.parent.team) {
-					//fix problem where a team that lost a previous round can be in(maybe functions for add and remove teams)
+function mousePressed() {
+	for(let bracket of allBrackets) {
+		if(bracket.contains(mouseX,mouseY)&&bracket.team&&bracket.parent) {//add other conditions ie only last instance of team
+			if(bracket.parent.team) {
+				for(let i=bracket.parent.team.positions.length-1; i>=6-bracket.parent.depth; i--) {
+					bracket.parent.team.positions[i].removeTeam();
 				}
 			}
+			bracket.parent.setTeam(bracket.team)
 		}
 	}
-	drag=false;
 }
